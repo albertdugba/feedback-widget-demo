@@ -35,15 +35,9 @@ function getContainer(containerId?: string): HTMLElement {
   return host;
 }
 
-export function init(
-  config: FeedbackWidgetConfig,
-): FeedbackWidgetInstance {
+export function init(config: FeedbackWidgetConfig): FeedbackWidgetInstance {
   if (!config.projectId) {
     throw new Error("[FeedbackWidget] projectId is required.");
-  }
-
-  if (config.onSubmit && typeof config.onSubmit !== "function") {
-    throw new Error("[FeedbackWidget] onSubmit must be a function.");
   }
 
   const widgetRef: { current: WidgetHandle | null } = { current: null };
@@ -63,7 +57,12 @@ export function init(
 
     render(
       <WidgetProvider>
-        <FeedbackWidget ref={widgetRef} projectId={config.projectId} onSubmit={config.onSubmit} hideBranding={config.hideBranding} />
+        <FeedbackWidget
+          ref={widgetRef}
+          projectId={config.projectId}
+          onSubmit={config.onSubmit}
+          hideBranding={config.hideBranding}
+        />
       </WidgetProvider>,
       mountPoint,
     );
