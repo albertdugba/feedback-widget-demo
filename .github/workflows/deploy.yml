@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare Pages
+name: Deploy Widget SDK
 
 on:
   push:
@@ -8,12 +8,10 @@ on:
     branches: [main]
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      deployments: write
-      pull-requests: write
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -29,49 +27,20 @@ jobs:
 
       - run: pnpm build
 
-      - name: Prepare versioned deploy
-        id: version
-        run: |
-          # Determine version from tag or default to "latest"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-          else
-            VERSION="latest"
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-          # Create versioned directory structure
-          #   dist/
-          #     v1.0.0/feedback-widget.iife.js
-          #     latest/feedback-widget.iife.js
-          #     feedback-widget.iife.js  (root copy for backwards compat)
-          mkdir -p "dist/$VERSION"
-          cp dist/feedback-widget.iife.js "dist/$VERSION/"
-
-          # Tagged releases also update latest/
-          if [[ "$VERSION" != "latest" ]]; then
-            mkdir -p dist/latest
-            cp dist/feedback-widget.iife.js dist/latest/
-          fi
-
-      - name: Deploy to Cloudflare Pages
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            BRANCH="main"
-          else
-            BRANCH="${{ github.head_ref || github.ref_name }}"
-          fi
-          npx wrangler pages deploy dist --project-name=feedback-widget --branch="$BRANCH"
+          VERSION="${GITHUB_REF#refs/tags/}"
+          gh release create "$VERSION" \
+            dist/feedback-widget.iife.js \
+            --title "$VERSION" \
+            --generate-notes
 
-      - name: Print deploy info
-        run: |
-          echo "## Deploy Info" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Version:** ${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Release: $VERSION" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Usage" >> "$GITHUB_STEP_SUMMARY"
           echo '```html' >> "$GITHUB_STEP_SUMMARY"
-          echo '<script src="https://feedback-widget-csk.pages.dev/${{ steps.version.outputs.version }}/feedback-widget.iife.js"></script>' >> "$GITHUB_STEP_SUMMARY"
+          echo "<script src=\"https://github.com/albertdugba/feedback-widget-demo/releases/download/$VERSION/feedback-widget.iife.js\"></script>" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
